@@ -3,31 +3,28 @@
 #include <string.h>
 #include <curl/curl.h>
  
-struct rustcurl_buffer {
+typedef struct {
     char *buf;
     size_t size;
-};
+} rustcurl_buffer;
  
-struct rustcurl_response {
-    struct rustcurl_buffer body;
-    struct rustcurl_buffer header;
-};
+typedef struct {
+    rustcurl_buffer body;
+    rustcurl_buffer header;
+} rustcurl_response;
  
-struct rustcurl_response* rustcurl_init_response() {
-    struct rustcurl_response *resp = (struct rustcurl_response*)
-                                     malloc(sizeof(struct rustcurl_response));
+void rustcurl_response_init(rustcurl_response *resp) {
     resp->body.buf = malloc(1);
     resp->body.size = 0;
     resp->header.buf = malloc(1);
     resp->header.size = 0;
-    return resp;
 }
 
 size_t
 rustcurl_write_handler(void *contents, size_t size, size_t nmemb, void *userp)
 {
     size_t realsize = size * nmemb;
-    struct rustcurl_buffer *data = (struct rustcurl_buffer*)userp;
+    rustcurl_buffer *data = (rustcurl_buffer*)userp;
 
     data->buf = realloc(data->buf, data->size + realsize + 1);
     if (data->buf == NULL) {
@@ -43,10 +40,12 @@ rustcurl_write_handler(void *contents, size_t size, size_t nmemb, void *userp)
     return realsize;
 }
  
-struct rustcurl_response* rustcurl_http_get(char *url) {
+rustcurl_response* rustcurl_http_get(const char *url) {
     CURL *curl_handle;
 
-    struct rustcurl_response *resp = rustcurl_init_response();
+    rustcurl_response *resp = (rustcurl_response*)
+                                     malloc(sizeof(rustcurl_response));
+    rustcurl_response_init(resp);
 
     curl_handle = curl_easy_init();
     curl_easy_setopt(curl_handle, CURLOPT_URL, url);
@@ -60,12 +59,12 @@ struct rustcurl_response* rustcurl_http_get(char *url) {
     return resp;
 }
  
+#if 0
 int main(int argc, char **argv)
 {
     char *url = argv[1];
-    struct rustcurl_response* resp;
+    rustcurl_response* resp;
 
-    curl_global_init(CURL_GLOBAL_ALL);
 
     resp = rustcurl_http_get(url);
     printf("%s\n", resp->body.buf);
@@ -77,3 +76,4 @@ int main(int argc, char **argv)
 
     return 0;
 }
+#endif
