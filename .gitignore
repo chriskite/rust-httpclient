@@ -1,2 +1,4 @@
+httpclient
+*.so
 *.swp
 *.o

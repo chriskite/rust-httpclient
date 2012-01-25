@@ -4,6 +4,11 @@
 #include <curl/curl.h>
  
 typedef struct {
+    struct curl_httppost *first;
+    struct curl_httppost *last;
+} rustcurl_post;
+
+typedef struct {
     char *buf;
     size_t size;
 } rustcurl_buffer;
@@ -55,6 +60,39 @@ rustcurl_response* rustcurl_http_get(const char *url) {
     curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "rust-httpclient");
     curl_easy_perform(curl_handle);
     curl_easy_cleanup(curl_handle);
+
+    return resp;
+}
+
+void rustcurl_post_add(rustcurl_post *post, const char *field, const char *value) {
+    curl_formadd(&post->first,
+                 &post->last,
+                 CURLFORM_COPYNAME, field,
+                 CURLFORM_COPYCONTENTS, value,
+                 CURLFORM_END);
+}
+
+rustcurl_response* rustcurl_http_post(const char *url, rustcurl_post *post) {
+    CURL *curl_handle;
+
+    rustcurl_response *resp = (rustcurl_response*)
+                                     malloc(sizeof(rustcurl_response));
+    rustcurl_response_init(resp);
+
+    curl_handle = curl_easy_init();
+
+    curl_easy_setopt(curl_handle, CURLOPT_URL, url);
+    curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, rustcurl_write_handler);
+    curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void *)&resp->body);
+    curl_easy_setopt(curl_handle, CURLOPT_WRITEHEADER, (void *)&resp->header);
+    curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "rust-httpclient");
+    curl_easy_setopt(curl_handle, CURLOPT_HTTPPOST, post->first);
+
+    curl_easy_perform(curl_handle);
+
+    /* cleanup */
+    curl_easy_cleanup(curl_handle);
+    curl_formfree(post->first);
 
     return resp;
 }
