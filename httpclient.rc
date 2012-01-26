@@ -1,0 +1,5 @@
+#[link(name   = "httpclient",
+       author = "chriskite",
+       vers   = "0.0.1",
+       uuid   = "c2d4cc00-4843-11e1-b86c-0800200c9a66")];
+#[crate_type = "lib"];

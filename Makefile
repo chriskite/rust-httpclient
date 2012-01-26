@@ -1,8 +1,10 @@
+export LDFLAGS=-fPIC
+
 all : librustcurl.so httpclient
 
 librustcurl.so : rustcurl.c
-	gcc -c -o librustcurl.so rustcurl.c -lcurl
+	gcc -O2 -o librustcurl.so -c rustcurl.c -lcurl 
 
-httpclient : httpclient.rs librustcurl.so
-	rustc httpclient.rs
+httpclient : httpclient.rs httpclient.rc librustcurl.so
+	rustc --lib httpclient.rc
 
