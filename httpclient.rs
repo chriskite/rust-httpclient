@@ -24,9 +24,12 @@ type rustcurl_response = {
 native mod rustcurl {
     fn rustcurl_http_get(url: *u8) -> *rustcurl_response;
     fn rustcurl_http_post(url: *u8, post: *rustcurl_post) -> *rustcurl_response;
+    fn rustcurl_http_post_raw(url: *u8, post: *rustcurl_post) -> *rustcurl_response;
     fn rustcurl_post_field_add(post: *rustcurl_post, field: *u8, value: *u8) -> *rustcurl_response;
     fn rustcurl_response_free(resp: *rustcurl_response);
     fn rustcurl_post_init(post: *rustcurl_post);
+    fn rustcurl_post_header_add(post: *rustcurl_post, header: *u8);
+    fn rustcurl_post_body_set(post: *rustcurl_post, body: *u8);
 }
 
 native mod curl {
@@ -48,7 +51,7 @@ fn get(url: str) -> response unsafe {
     ret {body: body, header: header}
 }
 
-fn post(url: str, data: map<str,str>) -> response unsafe {
+fn post(url: str, data: map<str,str>, headers: [str]) -> response unsafe {
     let post: rustcurl_post = {first: 0 as *void, last: 0 as *void, body: 0 as *u8, headerlist: 0 as *void};
     rustcurl::rustcurl_post_init(ptr::addr_of(post));
 
@@ -60,6 +63,11 @@ fn post(url: str, data: map<str,str>) -> response unsafe {
         rustcurl::rustcurl_post_field_add(ptr::addr_of(post), field_ptr, value_ptr);
     }
 
+    vec::iter(headers) { |header|
+        let header_bytes = str::bytes(header);
+        rustcurl::rustcurl_post_header_add(ptr::addr_of(post), vec::unsafe::to_ptr(header_bytes));
+    }
+
     let url_bytes = str::bytes(url);
     let resp = rustcurl::rustcurl_http_post(vec::unsafe::to_ptr(url_bytes), ptr::addr_of(post));
     let body = str::unsafe_from_bytes(vec::unsafe::from_buf((*resp).body.buf, (*resp).body.size));
@@ -69,10 +77,28 @@ fn post(url: str, data: map<str,str>) -> response unsafe {
     ret {body: body, header: header}
 }
 
+fn post_raw(url: str, post_body: str, headers: [str]) -> response unsafe {
+    let post: rustcurl_post = {first: 0 as *void, last: 0 as *void, body: 0 as *u8, headerlist: 0 as *void};
+    rustcurl::rustcurl_post_init(ptr::addr_of(post));
+    let post_body_bytes = str::bytes(post_body);
+    rustcurl::rustcurl_post_body_set(ptr::addr_of(post), vec::unsafe::to_ptr(post_body_bytes));
+
+    vec::iter(headers) { |header|
+        let header_bytes = str::bytes(header);
+        rustcurl::rustcurl_post_header_add(ptr::addr_of(post), vec::unsafe::to_ptr(header_bytes));
+    }
+
+    let url_bytes = str::bytes(url);
+    let resp = rustcurl::rustcurl_http_post_raw(vec::unsafe::to_ptr(url_bytes), ptr::addr_of(post));
+    let body = str::unsafe_from_bytes(vec::unsafe::from_buf((*resp).body.buf, (*resp).body.size));
+    let header = str::unsafe_from_bytes(vec::unsafe::from_buf((*resp).header.buf, (*resp).header.size));
+    rustcurl::rustcurl_response_free(resp);
+
+    ret {body: body, header: header}
+}
+
 // ./httpclient [url]
 fn main(args: [str]) {
-    let data = std::map::new_str_hash();
-    data.insert("foo", "bar");
-    let resp = post(args[1], data);
+    let resp = get(args[1]);
     std::io::println(resp.body);
 }

@@ -78,6 +78,12 @@ rustcurl_response* rustcurl_http_get(const char *url) {
     return resp;
 }
 
+void rustcurl_post_body_set(rustcurl_post *post, char *body) {
+    size_t len = strlen(body);
+    post->body = malloc(len * sizeof(char));
+    memcpy(post->body, body, len);
+}
+
 void rustcurl_post_field_add(rustcurl_post *post, const char *field, const char *value) {
     curl_formadd(&post->first,
                  &post->last,
@@ -106,6 +112,32 @@ rustcurl_response* rustcurl_http_post(const char *url, rustcurl_post *post) {
     curl_easy_setopt(curl_handle, CURLOPT_HTTPHEADER, post->headerlist);
     curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "rust-httpclient");
     curl_easy_setopt(curl_handle, CURLOPT_HTTPPOST, post->first);
+
+    curl_easy_perform(curl_handle);
+
+    /* cleanup */
+    curl_easy_cleanup(curl_handle);
+    rustcurl_post_free(post);
+
+    return resp;
+}
+
+rustcurl_response* rustcurl_http_post_raw(const char *url, rustcurl_post *post) {
+    CURL *curl_handle;
+
+    rustcurl_response *resp = (rustcurl_response*)
+                                     malloc(sizeof(rustcurl_response));
+    rustcurl_response_init(resp);
+
+    curl_handle = curl_easy_init();
+
+    curl_easy_setopt(curl_handle, CURLOPT_URL, url);
+    curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, rustcurl_write_handler);
+    curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void *)&resp->body);
+    curl_easy_setopt(curl_handle, CURLOPT_WRITEHEADER, (void *)&resp->header);
+    curl_easy_setopt(curl_handle, CURLOPT_HTTPHEADER, post->headerlist);
+    curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "rust-httpclient");
+    curl_easy_setopt(curl_handle, CURLOPT_POSTFIELDS, post->body);
 
     curl_easy_perform(curl_handle);
 
