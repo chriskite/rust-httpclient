@@ -5,7 +5,9 @@ import std::map::map;
 /* Interface with rustcurl */
 type rustcurl_post = {
     first: *void,
-    last: *void
+    last: *void,
+    body: *u8,
+    headerlist: *void
 };
 
 type rustcurl_buffer = {
@@ -22,8 +24,9 @@ type rustcurl_response = {
 native mod rustcurl {
     fn rustcurl_http_get(url: *u8) -> *rustcurl_response;
     fn rustcurl_http_post(url: *u8, post: *rustcurl_post) -> *rustcurl_response;
-    fn rustcurl_post_add(post: *rustcurl_post, field: *u8, value: *u8) -> *rustcurl_response;
+    fn rustcurl_post_field_add(post: *rustcurl_post, field: *u8, value: *u8) -> *rustcurl_response;
     fn rustcurl_response_free(resp: *rustcurl_response);
+    fn rustcurl_post_init(post: *rustcurl_post);
 }
 
 native mod curl {
@@ -46,14 +49,15 @@ fn get(url: str) -> response unsafe {
 }
 
 fn post(url: str, data: map<str,str>) -> response unsafe {
-    let post: rustcurl_post = {first: 0 as *void, last: 0 as *void};
+    let post: rustcurl_post = {first: 0 as *void, last: 0 as *void, body: 0 as *u8, headerlist: 0 as *void};
+    rustcurl::rustcurl_post_init(ptr::addr_of(post));
 
     data.items { |field, value|
         let field_bytes = str::bytes(field);
         let value_bytes = str::bytes(value);
         let field_ptr = vec::unsafe::to_ptr(field_bytes);
         let value_ptr = vec::unsafe::to_ptr(value_bytes);
-        rustcurl::rustcurl_post_add(ptr::addr_of(post), field_ptr, value_ptr);
+        rustcurl::rustcurl_post_field_add(ptr::addr_of(post), field_ptr, value_ptr);
     }
 
     let url_bytes = str::bytes(url);
@@ -67,6 +71,8 @@ fn post(url: str, data: map<str,str>) -> response unsafe {
 
 // ./httpclient [url]
 fn main(args: [str]) {
-    let resp = get(args[1]);
+    let data = std::map::new_str_hash();
+    data.insert("foo", "bar");
+    let resp = post(args[1], data);
     std::io::println(resp.body);
 }
