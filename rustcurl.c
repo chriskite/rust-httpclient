@@ -96,6 +96,13 @@ rustcurl_response* rustcurl_http_post(const char *url, rustcurl_post *post) {
 
     return resp;
 }
+
+void rustcurl_response_free(rustcurl_response *resp) {
+    free(resp->body.buf);
+    resp->body.size = 0;
+    free(resp->header.buf);
+    resp->header.size = 0;
+}
  
 #if 0
 int main(int argc, char **argv)
